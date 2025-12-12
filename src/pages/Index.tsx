@@ -9,9 +9,62 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useBooking, UserInfo } from '@/context/BookingContext';
 import { toast } from 'sonner';
 
+
+function StatusPopup() {
+  const { backgroundStatus, setBackgroundStatus } = useBooking();
+  const navigate = useNavigate();
+
+  if (!backgroundStatus || backgroundStatus.state === 'idle') return null;
+
+  const colorByState = (s: string) => {
+    switch (s) {
+      case 'pending':
+        return 'bg-yellow-500/95 text-black';
+      case 'success':
+        return 'bg-green-600 text-white';
+      case 'failure':
+        return 'bg-red-600 text-white';
+      case 'needs-info':
+        return 'bg-blue-600 text-white';
+      default:
+        return 'bg-gray-700 text-white';
+    }
+  };
+
+  return (
+    <div className={`fixed left-1/2 -translate-x-1/2 top-6 z-50 max-w-xl w-[90%] shadow-lg rounded-md ${colorByState(backgroundStatus.state)}`}>
+      <div className="flex items-center justify-between p-3">
+        <div className="flex items-center gap-3">
+          <div className="text-sm font-medium">{backgroundStatus.message || backgroundStatus.state}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          {backgroundStatus.state === 'needs-info' && (
+            <button
+              className="px-3 py-1 rounded bg-white/20 hover:bg-white/30"
+              onClick={() => {
+                setBackgroundStatus({ state: 'idle' });
+                navigate('/book/extra-info');
+              }}
+            >
+              Provide Info
+            </button>
+          )}
+          <button
+            className="px-2 py-1 rounded bg-white/10"
+            onClick={() => setBackgroundStatus({ state: 'idle' })}
+            aria-label="close status"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const Index = () => {
   const navigate = useNavigate();
-  const { setUserInfo } = useBooking();
+  const { setUserInfo, setBackgroundStatus } = useBooking();
   const [formData, setFormData] = useState<UserInfo>({
     firstName: '',
     lastName: '',
@@ -20,6 +73,8 @@ const Index = () => {
     dateOfBirth: '',
     reason: '',
   });
+
+  const [appointmentType, setAppointmentType] = useState<string>('general');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -41,7 +96,67 @@ const Index = () => {
     }
 
     setUserInfo(formData);
+    // start background booking process and then navigate to date-time step
+    startBookingProcess(formData, appointmentType);
     navigate('/book/date-time');
+  };
+
+  const startBookingProcess = async (userInfo: UserInfo, type: string) => {
+    // optimistic pending state
+    setBackgroundStatus({ state: 'pending', message: 'Booking request sent' });
+
+    try {
+      const resp = await fetch('http://localhost:3001/api/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userInfo, appointmentType: type }),
+      });
+
+      if (!resp.ok) {
+        // fallback: simulate background processing
+        setBackgroundStatus({ state: 'pending', message: 'Queued locally (simulated) — processing' });
+        setTimeout(() => setBackgroundStatus({ state: 'success', message: 'Appointment booked (simulated)' }), 2500);
+        return;
+      }
+
+      const data = await resp.json();
+      const jobId = data?.jobId;
+
+      if (!jobId) {
+        setBackgroundStatus({ state: 'success', message: 'Appointment booked' });
+        return;
+      }
+
+      // poll job status
+      const pollJob = async (id: string, attempts = 0) => {
+        try {
+          const r = await fetch(`http://localhost:3001/api/job/${id}`);
+          if (!r.ok) throw new Error('job poll failed');
+          const j = await r.json();
+          if (j.status === 'completed') {
+            setBackgroundStatus({ state: 'success', message: j.message || 'Booking completed' });
+            return;
+          }
+          if (j.status === 'needs-info') {
+            setBackgroundStatus({ state: 'needs-info', message: j.message || 'More info required' });
+            return;
+          }
+          if (j.status === 'failed') {
+            setBackgroundStatus({ state: 'failure', message: j.message || 'Booking failed' });
+            return;
+          }
+          if (attempts < 10) setTimeout(() => pollJob(id, attempts + 1), 2000);
+          else setBackgroundStatus({ state: 'failure', message: 'Booking timed out' });
+        } catch (err) {
+          if (attempts < 2) setTimeout(() => pollJob(id, attempts + 1), 1500);
+          else setBackgroundStatus({ state: 'failure', message: 'Unable to poll job status' });
+        }
+      };
+
+      pollJob(jobId);
+    } catch (err) {
+      setBackgroundStatus({ state: 'failure', message: 'Failed to start booking' });
+    }
   };
 
   const features = [
@@ -52,6 +167,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen gradient-hero">
+      <StatusPopup />
       {/* Hero Section */}
       <div className="container max-w-6xl py-12 px-4">
         <div className="text-center mb-12 animate-fade-in">
@@ -154,6 +270,22 @@ const Index = () => {
                   className="h-12"
                 />
               </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="appointmentType">Appointment Type</Label>
+                  <select
+                    id="appointmentType"
+                    name="appointmentType"
+                    value={appointmentType}
+                    onChange={(e) => setAppointmentType(e.target.value)}
+                    className="w-full h-12 rounded border px-3 bg-transparent"
+                  >
+                    <option value="general">General Consultation</option>
+                    <option value="followup">Follow-up</option>
+                    <option value="vaccine">Vaccine</option>
+                    <option value="telehealth">Telehealth</option>
+                  </select>
+                </div>
 
               <div className="space-y-2">
                 <Label htmlFor="reason">Reason for Visit</Label>

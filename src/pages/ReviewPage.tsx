@@ -20,16 +20,52 @@ const ReviewPage = () => {
     }
   }, [bookingData, navigate]);
 
+  // const handleSubmit = async () => {
+  //   setIsSubmitting(true);
+    
+  //   // Simulate API call
+  //   await new Promise((resolve) => setTimeout(resolve, 2000));
+    
+  //   setIsSubmitting(false);
+  //   setIsConfirmed(true);
+  //   toast.success('Appointment booked successfully!');
+  // };
   const handleSubmit = async () => {
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    
+  setIsSubmitting(true);
+
+  const { userInfo, selectedDate, selectedTime } = bookingData;
+
+  try {
+    const res = await fetch('http://localhost:3001/api/appointments', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userInfo,
+        selectedDate,   // Date object → will be serialized as ISO string
+        selectedTime,
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => 'Unknown error');
+      throw new Error(text);
+    }
+
+    // optional: read response JSON
+    // const data = await res.json();
+
     setIsSubmitting(false);
     setIsConfirmed(true);
     toast.success('Appointment booked successfully!');
-  };
+  } catch (err: any) {
+    console.error('Failed to book appointment', err);
+    setIsSubmitting(false);
+    toast.error(err?.message ?? 'Failed to book appointment, please try again.');
+  }
+};
+
 
   const handleBookAnother = () => {
     resetBooking();

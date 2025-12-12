@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import DateTimePage from "./pages/DateTimePage";
 import ReviewPage from "./pages/ReviewPage";
 import NotFound from "./pages/NotFound";
+import QuickLinkDropdown from './components/ui/quicklink-dropdown';
 
 const queryClient = new QueryClient();
 
@@ -17,6 +18,10 @@ const App = () => (
       <BookingProvider>
         <Toaster />
         <Sonner />
+          {/* App-level quicklinks in top-right */}
+          <div className="fixed top-4 right-4 z-50">
+            <QuickLinkDropdown />
+          </div>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
