@@ -7,7 +7,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { triggerQuicklink } from '@/lib/api';
-import { toast } from '@/hooks/use-toast';
 import { useBooking } from '@/context/BookingContext';
 
 const QUICKLINKS = [
@@ -44,19 +43,14 @@ const onTrigger = async (id: string) => {
   setLoadingId(id);
   setBackgroundStatus({ state: 'pending', message: `Triggered ${id}` });
 
-  const t = toast({ title: 'Queued', description: `Starting ${id}…` });
-
-  const res = await triggerQuicklink(id, (status, message) => {
+  const res = await triggerQuicklink(id, (status, message, jobId) => {
     // this runs multiple times while polling
     if (status === 'pending' || status === 'running') {
-      setBackgroundStatus({ state: 'pending', message: message ?? 'Job in progress…' });
-      t.update({ id: t.id, title: 'In Progress', description: message ?? 'Working…' });
+      setBackgroundStatus({ state: 'pending', message: message ?? 'Job in progress…', jobId });
     } else if (status === 'success') {
-      setBackgroundStatus({ state: 'success', message: message ?? 'Completed.' });
-      t.update({ id: t.id, title: 'Completed', description: message ?? 'Job finished successfully.' });
+      setBackgroundStatus({ state: 'success', message: message ?? 'Completed.', jobId });
     } else if (status === 'failure') {
-      setBackgroundStatus({ state: 'failure', message: message ?? 'Failed.' });
-      t.update({ id: t.id, title: 'Failed', description: message ?? 'Job failed.' });
+      setBackgroundStatus({ state: 'failure', message: message ?? 'Failed.', jobId });
     }
   });
 

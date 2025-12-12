@@ -9,6 +9,7 @@ import DateTimePage from "./pages/DateTimePage";
 import ReviewPage from "./pages/ReviewPage";
 import NotFound from "./pages/NotFound";
 import QuickLinkDropdown from './components/ui/quicklink-dropdown';
+import JobChat from './components/ui/job-chat';
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,8 @@ const App = () => (
           <div className="fixed top-4 right-4 z-50">
             <QuickLinkDropdown />
           </div>
+          {/* Job chat popup */}
+          <JobChat />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />

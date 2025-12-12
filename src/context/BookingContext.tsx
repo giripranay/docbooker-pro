@@ -20,6 +20,7 @@ export type BackgroundState = 'idle' | 'pending' | 'success' | 'failure' | 'need
 export interface BackgroundStatus {
   state: BackgroundState;
   message?: string;
+  jobId?: string;
 }
 
 interface BookingContextType {
