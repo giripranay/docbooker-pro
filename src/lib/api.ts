@@ -22,7 +22,7 @@ export async function triggerQuicklink(
 ): Promise<ApiResult & { jobId?: string }> {
   try {
     // 1) queue job
-    const res = await fetch(`http://localhost:3001/api/quicklink/${encodeURIComponent(id)}`, {
+    const res = await fetch(`http://127.0.0.1:3002/api/quicklink/${encodeURIComponent(id)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
@@ -47,7 +47,7 @@ export async function triggerQuicklink(
     while (true) {
       await new Promise((r) => setTimeout(r, 2000));
 
-      const sRes = await fetch(`http://localhost:3001/api/jobs/${jobId}`);
+      const sRes = await fetch(`http://127.0.0.1:3002/api/jobs/${jobId}`);
       if (!sRes.ok) {
         const text = await sRes.text().catch(() => 'Unknown error');
         return { ok: false, message: text };
@@ -81,12 +81,12 @@ export async function triggerQuicklink(
  * Send a message / response to an active job.
  * Backend must expose POST /api/jobs/:jobId/message
  */
-export async function sendJobMessage(jobId: string, message: string): Promise<ApiResult> {
+export async function sendJobMessage(jobId: string, question: string, answer: string): Promise<ApiResult> {
   try {
-    const res = await fetch(`http://localhost:3001/api/jobs/${encodeURIComponent(jobId)}/message`, {
+    const res = await fetch(`http://127.0.0.1:3002/api/jobs/${encodeURIComponent(jobId)}/answer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ question, answer }),
     });
 
     if (!res.ok) {
@@ -100,3 +100,4 @@ export async function sendJobMessage(jobId: string, message: string): Promise<Ap
     return { ok: false, message: err?.message ?? String(err) };
   }
 }
+

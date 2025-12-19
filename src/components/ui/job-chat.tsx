@@ -6,12 +6,18 @@ import { useToast } from '@/hooks/use-toast';
 type ChatMsg = {
   id: string;
   from: 'system' | 'job' | 'user';
-  text: string;
+  text?: string;
   ts: number;
+  file?: {
+    name: string;
+    url: string;
+  };
 };
 
+const pdfChunksRef = useRef<string[]>([]);
+
 const JobChat: React.FC = () => {
-  const { backgroundStatus } = useBooking();
+  const { backgroundStatus, setBackgroundStatus } = useBooking();
   const { toast } = useToast();
   const [open, setOpen] = useState<boolean>(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
@@ -24,14 +30,7 @@ const JobChat: React.FC = () => {
   }, [backgroundStatus.state]);
 
   // append status messages from backgroundStatus
-  useEffect(() => {
-    if (!backgroundStatus?.message) return;
-    const id = `${Date.now()}-status`;
-    setMessages((m) => [
-      ...m,
-      { id, from: 'job', text: backgroundStatus.message || '', ts: Date.now() },
-    ]);
-  }, [backgroundStatus?.message]);
+  // (removed automatic mirroring of backgroundStatus.message into chat)
 
   useEffect(() => {
     // scroll to bottom on new message
@@ -41,36 +40,98 @@ const JobChat: React.FC = () => {
     }
   }, [messages.length, open]);
 
-  const onSend = async () => {
-    const text = input.trim();
-    if (!text) return;
-    if (!backgroundStatus?.jobId) {
-      toast({ title: 'No active job', description: 'Unable to send message - no job id' });
-      return;
-    }
 
-    const userMsg: ChatMsg = { id: `${Date.now()}-u`, from: 'user', text, ts: Date.now() };
-    setMessages((m) => [...m, userMsg]);
-    setInput('');
+   // -----------------------------
+  // SSE Connection for job updates
+  // -----------------------------
+  useEffect(() => {
+    if (!backgroundStatus.jobId) return;
 
-    const result = await sendJobMessage(backgroundStatus.jobId, text);
+    const eventSource = new EventSource(
+      `http://localhost:3002/api/sse/${backgroundStatus.jobId}`
+    );
 
-    if (!result.ok) {
-      toast({ title: 'Failed to send', description: result.message ?? 'Unable to send message' });
-      // add failure system msg
-      setMessages((m) => [
-        ...m,
-        { id: `${Date.now()}-err`, from: 'system', text: result.message ?? 'Failed to send', ts: Date.now() },
-      ]);
-      return;
-    }
+    // Question from server
+    eventSource.addEventListener('question', (e: MessageEvent) => {
+      const payload = JSON.parse(e.data);
+      const msg: ChatMsg = {
+        id: payload.id,
+        from: 'job',
+        text: payload.text,
+        ts: Date.now(),
+      };
+      setMessages((prev) => [...prev, msg]);
+      setBackgroundStatus({
+        state: 'needs-info',
+        message: payload.text,
+        jobId: backgroundStatus.jobId,
+      });
+    });
 
-    // append job response (optimistic)
+    // Progress updates
+    eventSource.addEventListener('progress', (e: MessageEvent) => {
+      const msg: ChatMsg = {
+        id: `${Date.now()}-p`,
+        from: 'job',
+        text: e.data,
+        ts: Date.now(),
+      };
+      setMessages((prev) => [...prev, msg]);
+      setBackgroundStatus({
+        state: 'pending',
+        message: e.data,
+        jobId: backgroundStatus.jobId,
+      });
+    });
+
+    // Close on error
+    eventSource.addEventListener('error', () => {
+      console.error('SSE connection error');
+      setBackgroundStatus({
+        state: 'failure',
+        message: 'SSE connection lost',
+        jobId: backgroundStatus.jobId,
+      });
+      eventSource.close();
+    });
+
+    return () => {
+      eventSource.close();
+    };
+  }, [backgroundStatus.jobId, setBackgroundStatus]);
+
+const onSend = async () => {
+  const text = input.trim();
+  if (!text || !backgroundStatus?.jobId) return;
+
+  // Get the last unanswered question from messages
+  const lastQuestionMsg = [...messages].reverse().find((m) => m.from === 'job' && m.text && m.text !== 'Job is running…');
+  const question = lastQuestionMsg?.text ?? "Unknown question";
+
+  // Optimistically update chat
+  const userMsg: ChatMsg = { id: `${Date.now()}-u`, from: 'user', text, ts: Date.now() };
+  setMessages((m) => [...m, userMsg]);
+  setInput('');
+
+  const result = await sendJobMessage(backgroundStatus.jobId, question, text);
+
+  if (!result.ok) {
+    toast({ title: 'Failed to send', description: result.message ?? 'Unable to send message' });
     setMessages((m) => [
       ...m,
-      { id: `${Date.now()}-r`, from: 'job', text: result.message ?? 'Message delivered', ts: Date.now() },
+      { id: `${Date.now()}-err`, from: 'system', text: result.message ?? 'Failed to send', ts: Date.now() },
     ]);
-  };
+    return;
+  }
+
+  // Append job response (optional)
+//   setMessages((m) => [
+//     ...m,
+//     { id: `${Date.now()}-r`, from: 'job', text: result.message ?? 'Message delivered', ts: Date.now() },
+//   ]);
+};
+
+
 
   if (!open) {
     // collapsed chat button (show when there's any background activity)

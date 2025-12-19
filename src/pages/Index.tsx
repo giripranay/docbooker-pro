@@ -97,7 +97,7 @@ const Index = () => {
 
     setUserInfo(formData);
     // start background booking process and then navigate to date-time step
-    startBookingProcess(formData, appointmentType);
+    // startBookingProcess(formData, appointmentType);
     navigate('/book/date-time');
   };
 
@@ -106,7 +106,7 @@ const Index = () => {
     setBackgroundStatus({ state: 'pending', message: 'Booking request sent' });
 
     try {
-      const resp = await fetch('http://localhost:3001/api/book', {
+      const resp = await fetch('http://localhost:3002/api/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userInfo, appointmentType: type }),
@@ -130,7 +130,7 @@ const Index = () => {
       // poll job status
       const pollJob = async (id: string, attempts = 0) => {
         try {
-          const r = await fetch(`http://localhost:3001/api/job/${id}`);
+          const r = await fetch(`http://localhost:3002/api/job/${id}`);
           if (!r.ok) throw new Error('job poll failed');
           const j = await r.json();
           if (j.status === 'completed') {
