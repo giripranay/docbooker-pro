@@ -10,7 +10,7 @@ import { triggerQuicklink } from '@/lib/api';
 import { useBooking } from '@/context/BookingContext';
 
 const QUICKLINKS = [
-  { id: 'book-appointment', label: 'Book Appointment' }
+  { id: 'book-appointment', label: 'Generate Reports' }
 //   { id: 'recalc-availability', label: 'Recalculate Availability' },
 //   { id: 'cleanup-jobs', label: 'Cleanup Jobs' },
 ];

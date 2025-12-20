@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBooking } from '@/context/BookingContext';
 import { sendJobMessage } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -14,16 +14,16 @@ type ChatMsg = {
   };
 };
 
-const pdfChunksRef = useRef<string[]>([]);
 
 const JobChat: React.FC = () => {
+  const pdfChunksRef = useRef<string[]>([]);
   const { backgroundStatus, setBackgroundStatus } = useBooking();
   const { toast } = useToast();
   const [open, setOpen] = useState<boolean>(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const scrollerRef = useRef<HTMLDivElement | null>(null);
-
+  const pdfBytesRef = useRef<Uint8Array[]>([]);
   // open chat when there's an active job or needs-info
   useEffect(() => {
     if (backgroundStatus.state !== 'idle') setOpen(true);
@@ -45,60 +45,107 @@ const JobChat: React.FC = () => {
   // SSE Connection for job updates
   // -----------------------------
   useEffect(() => {
-    if (!backgroundStatus.jobId) return;
+  if (!backgroundStatus.jobId) return;
 
-    const eventSource = new EventSource(
-      `http://localhost:3002/api/sse/${backgroundStatus.jobId}`
-    );
+  const eventSource = new EventSource(
+    `http://localhost:3002/api/sse/${backgroundStatus.jobId}`
+  );
 
-    // Question from server
-    eventSource.addEventListener('question', (e: MessageEvent) => {
-      const payload = JSON.parse(e.data);
-      const msg: ChatMsg = {
+  eventSource.addEventListener('question', (e: MessageEvent) => {
+    const payload = JSON.parse(e.data);
+    setMessages((prev) => [
+      ...prev,
+      {
         id: payload.id,
         from: 'job',
         text: payload.text,
         ts: Date.now(),
-      };
-      setMessages((prev) => [...prev, msg]);
-      setBackgroundStatus({
-        state: 'needs-info',
-        message: payload.text,
-        jobId: backgroundStatus.jobId,
-      });
-    });
+      },
+    ]);
+  });
 
-    // Progress updates
-    eventSource.addEventListener('progress', (e: MessageEvent) => {
-      const msg: ChatMsg = {
-        id: `${Date.now()}-p`,
-        from: 'job',
-        text: e.data,
-        ts: Date.now(),
-      };
-      setMessages((prev) => [...prev, msg]);
-      setBackgroundStatus({
-        state: 'pending',
-        message: e.data,
-        jobId: backgroundStatus.jobId,
-      });
-    });
+  eventSource.addEventListener('progress', (e: MessageEvent) => {
+  const payload = JSON.parse(e.data);
 
-    // Close on error
-    eventSource.addEventListener('error', () => {
-      console.error('SSE connection error');
-      setBackgroundStatus({
-        state: 'failure',
-        message: 'SSE connection lost',
-        jobId: backgroundStatus.jobId,
-      });
-      eventSource.close();
-    });
+  setMessages((prev) => [
+    ...prev,
+    {
+      id: `${Date.now()}-p`,
+      from: 'job',
+      text: payload.text ?? payload.message ?? 'Working...',
+      ts: Date.now(),
+    },
+  ]);
+});
 
-    return () => {
-      eventSource.close();
-    };
-  }, [backgroundStatus.jobId, setBackgroundStatus]);
+
+  // 📄 PDF chunk
+  eventSource.addEventListener('pdf_chunk', (e: MessageEvent) => {
+  const payload = JSON.parse(e.data);
+
+  // Decode THIS chunk only
+  const binary = atob(payload.data);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  pdfBytesRef.current.push(bytes);
+});
+
+
+
+  // ✅ PDF complete
+  eventSource.addEventListener('pdf_complete', (e: MessageEvent) => {
+  const payload = JSON.parse(e.data);
+
+  const blob = new Blob(pdfBytesRef.current, {
+    type: 'application/pdf',
+  });
+
+  pdfBytesRef.current = [];
+
+  const url = URL.createObjectURL(blob);
+
+  setMessages((prev) => [
+    ...prev,
+    {
+      id: `${Date.now()}-file`,
+      from: 'job',
+      ts: Date.now(),
+      file: {
+        name: payload.fileName,
+        url,
+      },
+    },
+  ]);
+});
+
+  
+
+  eventSource.addEventListener('status', (e: MessageEvent) => {
+  const payload = JSON.parse(e.data);
+
+  setMessages((prev) => [
+    ...prev,
+    {
+      id: `${Date.now()}-status`,
+      from: 'job',
+      text: payload.text,
+      ts: Date.now(),
+    },
+  ]);
+});
+
+
+  eventSource.addEventListener('error', () => {
+    eventSource.close();
+  });
+
+  return () => eventSource.close();
+}, [backgroundStatus.jobId]);
+
 
 const onSend = async () => {
   const text = input.trim();
@@ -171,16 +218,29 @@ const onSend = async () => {
           )}
 
           {messages.map((m) => (
-            <div key={m.id} className={`flex ${m.from === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[85%] px-3 py-2 rounded-lg text-sm ${
-                  m.from === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary/30 text-secondary-foreground'
-                }`}
-              >
-                {m.text}
+              <div key={m.id} className={`flex ${m.from === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className={`max-w-[85%] px-3 py-2 rounded-lg text-sm ${
+                    m.from === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary/30 text-secondary-foreground'
+                  }`}
+                >
+                  {m.text && <div>{m.text}</div>}
+
+                  {m.file && (
+                    <a
+                      href={m.file.url}
+                      download={m.file.name}
+                      className="flex items-center gap-2 underline mt-1"
+                    >
+                      📄 {m.file.name}
+                    </a>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+
         </div>
 
         <div className="p-3 border-t border-border/50 bg-card/50">

@@ -175,137 +175,14 @@ const Index = () => {
             <User className="w-8 h-8 text-primary-foreground" />
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Book Your <span className="text-primary">Doctor</span> Appointment
+            Auto Pilot <span className="text-primary">Portal</span> - SWBC
           </h1>
           <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-            Schedule your visit with ease. Fill in your details below to get started.
+            User friendly AI powered report servies platform to generate comprehensive reports with ease.
           </p>
         </div>
 
-        {/* Features */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12 animate-slide-up">
-          {features.map((feature, index) => (
-            <div
-              key={feature.title}
-              className="flex items-center gap-4 p-4 rounded-xl bg-card/50 backdrop-blur-sm border border-border/50"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <feature.icon className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground">{feature.title}</h3>
-                <p className="text-sm text-muted-foreground">{feature.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Form Card */}
-        <Card className="max-w-2xl mx-auto shadow-elevated border-border/50 animate-scale-in">
-          <CardContent className="p-6 md:p-8">
-            <h2 className="text-xl font-semibold text-foreground mb-6">Your Information</h2>
-            
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    name="firstName"
-                    placeholder="John"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    className="h-12"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    name="lastName"
-                    placeholder="Doe"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    className="h-12"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address *</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="john@example.com"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="h-12"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    placeholder="(555) 123-4567"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="h-12"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                <Input
-                  id="dateOfBirth"
-                  name="dateOfBirth"
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={handleInputChange}
-                  className="h-12"
-                />
-              </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="appointmentType">Appointment Type</Label>
-                  <select
-                    id="appointmentType"
-                    name="appointmentType"
-                    value={appointmentType}
-                    onChange={(e) => setAppointmentType(e.target.value)}
-                    className="w-full h-12 rounded border px-3 bg-transparent"
-                  >
-                    <option value="general">General Consultation</option>
-                    <option value="followup">Follow-up</option>
-                    <option value="vaccine">Vaccine</option>
-                    <option value="telehealth">Telehealth</option>
-                  </select>
-                </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="reason">Reason for Visit</Label>
-                <Textarea
-                  id="reason"
-                  name="reason"
-                  placeholder="Please describe the reason for your appointment..."
-                  value={formData.reason}
-                  onChange={handleInputChange}
-                  className="min-h-[100px] resize-none"
-                />
-              </div>
-
-              <Button type="submit" variant="hero" size="xl" className="w-full mt-6">
-                <Calendar className="w-5 h-5 mr-2" />
-                Book Appointment
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        
       </div>
     </div>
   );
